@@ -2,31 +2,93 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 
-class Board extends React.Component {
+class Game extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            squares: Array(9).fill(null)
+            history: [{
+                squares: Array(9).fill(null)
+            }],
+            xIsNext: true,
+            stepNumber: 0
         };
     }
-    handleClick(i) {
-        const squares = this.state.squares.slice();
-        squares[i] = 'X';
-        this.setState({ squares: squares })
+    getPlayer() {
+        return this.state.xIsNext ? 'X' : 'O';
     }
+    handleClick(i) {
+        const history = this.state.history.slice(0, this.state.stepNumber + 1);
+        const current = history[history.length - 1];
+        const squares = current.squares.slice();
+        //si hay un ganador o se hace click en un cuadro ya jugado
+        if (calculateWinner(squares) || squares[i]) return;
+        squares[i] = this.getPlayer();
+        this.setState({
+            history: history.concat([{
+                squares: squares
+            }]),
+            xIsNext: !this.state.xIsNext,
+            stepNumber: history.length
+        });
+    }
+    jumpTo(step) {
+        this.setState({
+            stepNumber: step,
+            xIsNext: (step % 2) === 0,//0 o par es turno de X
+        });
+    }
+    render() {
+        const history = this.state.history;
+        const current = history[this.state.stepNumber];
+        const winner = calculateWinner(current.squares);
+
+        let status;
+        if (winner) {
+            status = 'El jugador ganador es ' + winner + ' !!!';
+        } else {
+            status = 'Turno del jugador ' + this.getPlayer();
+        }
+
+        const moves = history.map((step, move) => {
+            const desc = move ?
+                'Ir al movimiento #' + move :
+                'Ir al inicio del juego';
+            return (
+                <li key={move}>
+                    <button onClick={() => this.jumpTo(move)}>{desc}</button>
+                </li>
+            );
+        });
+
+        return (
+            <div className='game'>
+                <div className='game-board'>
+                    <Board
+                        squares={current.squares}
+                        onClick={(i) => this.handleClick(i)}
+                    />
+                </div>
+                <div className='game-info'>
+                    <div>{status}</div>
+                    <ol>{moves}</ol>
+                </div>
+            </div>
+        );
+    }
+}
+
+class Board extends React.Component {
     renderSquare(i) {
         return (
             <Square
-                value={this.state.squares[i]}
-                onClick={() => this.handleClick(i)}
+                value={this.props.squares[i]}
+                onClick={() => this.props.onClick(i)}
             />
         );
     }
     render() {
-        const status = 'Turno del Jugador ' + 'X';
         return (
             <div>
-                <div className="status">{status}</div>
                 <div className="board-row">
                     {this.renderSquare(0)}
                     {this.renderSquare(1)}
@@ -47,22 +109,32 @@ class Board extends React.Component {
     }
 }
 
-class Square extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            value: null
-        };
-    }
-    render() {
-        return (
-            <button
-                className="square"
-                onClick={() => this.props.onClick()}>
-                {this.props.value}
-            </button>
-        );
-    }
+function Square(props) {
+    return (
+        <button className='square' onClick={props.onClick}>
+            {props.value ? props.value : '.'}
+        </button>
+    );
 }
 
-ReactDOM.render(<Board />, document.getElementById('root'));
+function calculateWinner(squares) {
+    const lines = [
+        [0, 1, 2],
+        [3, 4, 5],
+        [6, 7, 8],
+        [0, 3, 6],
+        [1, 4, 7],
+        [2, 5, 8],
+        [0, 4, 8],
+        [2, 4, 6],
+    ];
+    for (let i = 0; i < lines.length; i++) {
+        const [a, b, c] = lines[i];
+        if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+            return squares[a];
+        }
+    }
+    return null;
+}
+
+ReactDOM.render(<Game />, document.getElementById('root'));
